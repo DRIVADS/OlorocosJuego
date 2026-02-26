@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Batalla de Cartas</title>
+    <style>
+        /* --- 1. CARGA DE FUENTES --- */
+        @font-face {
+            font-family: 'MiFuenteTexto';
+            src: url('fuente_texto.ttf');
+        }
+        @font-face {
+            font-family: 'MiFuenteTitulo';
+            src: url('fuente_titulo.otf');
+        }
+
+        /* --- 2. ESTILOS GENERALES --- */
+        body { 
+            font-family: 'MiFuenteTexto', sans-serif; 
+            background-color: #1a1a1a; 
+            color: white; 
+            text-align: center; 
+            margin: 0; 
+            user-select: none; /* Evita selección de texto accidental */
+        }
+
+        /* Títulos y Botones con la fuente especial */
+        h1, h2, h3, h4, .btn-menu, #btnComenzar, #dado, .btn-fin, .btn-modal {
+            font-family: 'MiFuenteTitulo', serif;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        /* --- 3. FONDOS DE PANTALLA INDEPENDIENTES --- */
+        .pantalla { 
+            display: none; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+        }
+
+        #pantalla-login { background-image: url('fondo_login.png'); box-shadow: inset 0 0 0 2000px rgba(0, 0, 0, 0.5); }
+        #pantalla-lobby { background-image: url('fondo_lobby.png'); box-shadow: inset 0 0 0 2000px rgba(0, 0, 0, 0.6); }
+        #pantalla-seleccion { background-color: #222; background-image: linear-gradient(45deg, #222 25%, #2a2a2a 25%, #2a2a2a 50%, #222 50%, #222 75%, #2a2a2a 75%, #2a2a2a 100%); background-size: 40px 40px; }
+        #pantalla-juego { background-image: url('fondo_juego.png'); box-shadow: inset 0 0 0 2000px rgba(0, 0, 0, 0.3); }
+
+        /* --- 4. LOGOTIPO Y PERSONAJE --- */
+        .logo-principal { width: 350px; max-width: 80%; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.8)); animation: flotar 3s ease-in-out infinite; }
+        @keyframes flotar { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+
+        .contenedor-lobby { display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
+        .personaje-lateral { height: 400px; width: auto; filter: drop-shadow(0 0 15px black); transition: transform 0.3s; }
+        .personaje-lateral:hover { transform: scale(1.05); }
+
+        /* --- UI ELEMENTOS --- */
+        #overlay-dado { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        #img-dado { width: 200px; height: 200px; }
+        #texto-dado { font-size: 30px; margin-top: 20px; color: gold; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 5000; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: #333; padding: 20px; border-radius: 10px; border: 2px solid gold; width: 300px; }
+        input[type="text"] { padding: 10px; font-size: 16px; margin: 10px 0; width: 80%; border-radius:5px; border:none; text-align:center; font-family: 'MiFuenteTexto', sans-serif; }
+        .btn-modal { padding: 10px 20px; font-size: 16px; background: gold; color: black; border: none; cursor: pointer; border-radius:5px; margin:5px;}
+
+        .menu-caja { background: rgba(40, 40, 40, 0.9); padding: 40px; border-radius: 15px; border: 2px solid #555; box-shadow: 0 0 30px black; width: 300px; backdrop-filter: blur(5px); }
+        .btn-menu { display: block; width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; color: white; transition: 0.2s; box-shadow: 0 4px 0 rgba(0,0,0,0.5); }
+        .btn-menu:active { transform: translateY(4px); box-shadow: none; }
+        .btn-cpu { background: #0077cc; } .btn-cpu:hover { background: #0099ff; }
+        .btn-pvp { background: #cc00cc; } .btn-pvp:hover { background: #ff00ff; }
+        .btn-retar { background: #ff8800; } .btn-retar:hover { background: #ffaa00; }
+        .separador { border-top: 1px solid #555; margin: 20px 0; }
+
+        /* CARTAS */
+        .grid-seleccion { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-width: 800px; width: 100%; margin-bottom: 20px; }
+        .carta-seleccion { width: 120px; height: 180px; background-color: #444; border: 3px solid #666; border-radius: 8px; cursor: pointer; position: relative; transition: 0.2s; opacity: 0.8; }
+        .carta-seleccion:hover { transform: scale(1.05); opacity: 1; }
+        .carta-seleccion.seleccionada { border-color: #0f0; background-color: #224422; box-shadow: 0 0 15px #0f0; opacity: 1; transform: scale(1.05); }
+        .carta-bloqueada { filter: grayscale(100%); opacity: 0.6; cursor: not-allowed; border-color: #333; }
+        .candado-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; }
+        .img-mini { width: 100%; height: 100px; object-fit: contain; background: white; border-radius: 4px; }
+        #btnComenzar { padding: 15px 40px; font-size: 24px; background-color: #555; color: #aaa; border: none; border-radius: 10px; cursor: not-allowed; }
+        #btnComenzar.activo { background-color: #00cc00; color: white; cursor: pointer; box-shadow: 0 0 20px #00cc00; }
+
+        #mesa { height: 320px; border: 2px dashed rgba(255,255,255,0.3); margin: 20px; display: flex; justify-content: center; align-items: center; gap: 40px; background-color: rgba(0,0,0,0.6); border-radius: 15px; position: relative; width: 90%; max-width: 800px;}
+        #dado { font-size: 24px; color: gold; font-weight: bold; margin: 10px; border: 2px solid gold; padding: 10px; display: inline-block; background-color: #333; border-radius: 5px; }
+        #miMano { display: flex; justify-content: center; gap: 10px; position: fixed; bottom: 10px; width: 100%; padding-bottom: 10px; background: rgba(0,0,0,0.8); z-index: 100; }
+        
+        .carta { width: 140px; height: 240px; background-color: #eee; color: black; border-radius: 10px; padding: 5px; cursor: pointer; border: 4px solid #444; display: flex; flex-direction: column; align-items: center; transition: 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+        .carta:hover { transform: translateY(-15px) scale(1.05); border-color: gold; z-index: 10; }
+        .carta-deshabilitada { opacity: 0.5; pointer-events: none; filter: grayscale(100%); }
+        .carta-dorso { width: 140px; height: 240px; background-image: url('dorso.png'); background-size: cover; background-position: center; border: 4px solid #fff; border-radius: 10px; display: flex; justify-content: center; align-items: center; color: transparent; font-size: 0px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+        .carta-titulo { font-family: 'MiFuenteTitulo', serif; font-weight: bold; font-size: 14px; margin-bottom: 2px; text-transform: uppercase; }
+        .carta-img { width: 100%; height: 120px; object-fit: contain; background-color: #fff; border-radius: 5px; margin-bottom: 5px; border: 1px solid #ccc; }
+        .carta-stats { font-size: 12px; text-align: left; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background-color: #ddd; padding: 2px; border-radius: 4px; }
+        .stat-item { padding: 1px 3px; }
+        .slot-vacio { width: 140px; height: 240px; border: 2px dashed #aaa; border-radius: 10px; display: flex; justify-content: center; align-items: center; color: #eee; flex-direction:column; text-shadow: 1px 1px 2px black;}
+        
+        .contenedor-botones-fin { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 20px; z-index: 200; }
+        .btn-fin { padding: 15px 25px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 0 10px black; }
+        .btn-mismo { background-color: #0088cc; } .btn-cambiar { background-color: #cc8800; } .btn-salir { background-color: #cc0000; }
+    </style>
+</head>
+<body>
+
+    <!-- OVERLAYS -->
+    <div id="overlay-dado"><img src="dado.gif" id="img-dado" alt="Girando..."><div id="texto-dado">¡TIRANDO EL DADO!</div></div>
+    
+    <!-- MODALES -->
+    <div id="modal-codigo" class="modal"><div class="modal-content"><h3>Carta Bloqueada</h3><input type="text" id="inputCodigo" placeholder="CÓDIGO AQUÍ"><br><button class="btn-modal" onclick="verificarCodigo(); sonarClick();">Desbloquear</button><button class="btn-modal" style="background:#555;color:white" onclick="cerrarModal('modal-codigo'); sonarClick();">Cancelar</button><p id="errorCodigo" style="color:red; font-size:12px;"></p></div></div>
+    
+    <div id="modal-invitacion" class="modal"><div class="modal-content" style="border-color: #ff8800;"><h3>¡DESAFÍO RECIBIDO!</h3><p id="textoInvitacion"></p><button class="btn-modal" onclick="responderInvitacion(true); sonarClick();">ACEPTAR</button><button class="btn-modal" style="background:#cc0000;color:white" onclick="responderInvitacion(false); sonarClick();">RECHAZAR</button></div></div>
+
+    <div id="modal-espera" class="modal"><div class="modal-content" style="text-align:center;"><h3>Conectando...</h3><p id="textoEspera">Por favor espera...</p><button class="btn-modal" style="background:#555;color:white;font-size:12px;" onclick="cerrarModal('modal-espera'); sonarClick();">Cancelar / Cerrar</button></div></div>
+
+    <div id="modal-exito" class="modal"><div class="modal-content" style="border-color:#0f0;"><h2 style="color:#0f0">¡FELICIDADES!</h2><h3 id="nombreCartaDesbloqueada" style="color:gold"></h3><button class="btn-modal" onclick="cerrarModal('modal-exito'); sonarClick();">ACEPTAR</button></div></div>
+
+    <!-- 1. LOGIN -->
+    <div id="pantalla-login" class="pantalla" style="display:flex;">
+        <img src="logo.png" class="logo-principal">
+        <div class="menu-caja">
+            <h3>¿Cómo te llamas?</h3>
+            <input type="text" id="inputNombre" placeholder="Tu Nickname" maxlength="12">
+            <br>
+            <button class="btn-menu btn-cpu" style="background:gold; color:white; font-weight:bold;" onclick="entrarLobby(); sonarClick();">ENTRAR</button>
+        </div>
+    </div>
+
+    <!-- 2. LOBBY -->
+    <div id="pantalla-lobby" class="pantalla">
+        <img src="logo.png" style="width:150px; filter:drop-shadow(0 0 5px black);">
+        <h1 style="margin-top:0;">LOBBY DE JUEGO</h1>
+        <h3 id="saludoLobby" style="color:#ddd; margin-top:0;">Bienvenido</h3>
+        <div class="contenedor-lobby">
+            <div class="menu-caja">
+                <button class="btn-menu btn-cpu" onclick="buscarPartida('cpu'); sonarClick();">Jugar vs CPU</button>
+                <button class="btn-menu btn-pvp" onclick="buscarPartida('random'); sonarClick();">Buscar Usuario Libre</button>
+                <div class="separador"></div>
+                <h4>Retar a un Amigo</h4>
+                <input type="text" id="inputRival" placeholder="Nombre de tu amigo">
+                <button class="btn-menu btn-retar" onclick="retarAmigo(); sonarClick();">RETAR</button>
+            </div>
+            <img src="personaje.png" class="personaje-lateral">
+        </div>
+    </div>
+
+    <!-- 3. SELECCION -->
+    <div id="pantalla-seleccion" class="pantalla">
+        <h1>Construye tu Mazo</h1><div id="msgSeleccion">Elige 5 cartas</div><div id="gridCartas" class="grid-seleccion"></div><br>
+        <button id="btnComenzar" onclick="enviarSeleccion(); sonarClick();">COMENZAR PARTIDA</button>
+    </div>
+
+    <!-- 4. JUEGO -->
+    <div id="pantalla-juego" class="pantalla">
+        <div id="mensaje">Esperando...</div>
+        <div id="dado">DADO: ???</div>
+        <div id="mesa"></div>
+        <div id="miMano"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // --- 0. CONFIGURACIÓN DE AUDIO ---
+        const audioFondo = new Audio('musica_fondo.mp3');
+        audioFondo.loop = true; 
+        audioFondo.volume = 0.3; // Volumen bajo para que no moleste
+
+        const sfxClick = new Audio('click.wav');
+        const sfxSelect = new Audio('card_select.wav');
+        const sfxJugar = new Audio('card_place.wav');
+        const musicVictoria = new Audio('victoria.wav');
+        const musicDerrota = new Audio('derrota.wav');
+
+        // Funciones para reproducir sonidos sin errores
+        function sonarClick() { sfxClick.currentTime = 0; sfxClick.play().catch(e=>{}); }
+        function sonarSeleccion() { sfxSelect.currentTime = 0; sfxSelect.play().catch(e=>{}); }
+        function sonarJugarCarta() { sfxJugar.currentTime = 0; sfxJugar.play().catch(e=>{}); }
+
+        // --- LÓGICA DE JUEGO ---
+        var socket = io();
+        var miId = "";
+        var miNombre = "";
+        var nombreRival = "Oponente";
+        
+        var poolCartas = []; 
+        var idsDesbloqueados = []; 
+        var seleccionadasIndices = []; 
+        var cartaIdIntentandoDesbloquear = -1; 
+        var misCartas = []; 
+        var atributoDelTurno = -1; 
+        
+        var bloqueado = false; 
+        var miCartaEnMesa = null; 
+        var rivalJugo = false;    
+        var idRetadorPendiente = null;
+
+        // --- LOGIN Y LOBBY ---
+        function entrarLobby() {
+            let n = document.getElementById('inputNombre').value.trim();
+            if(!n) return alert("Escribe un nombre");
+            miNombre = n;
+            
+            // INTENTAR INICIAR MUSICA DE FONDO (Requiere interacción)
+            audioFondo.play().catch(e => console.log("Audio bloqueado, espera un click"));
+            
+            socket.emit('registrarUsuario', n);
+        }
+
+        socket.on('registroExitoso', () => {
+            document.getElementById('pantalla-login').style.display = 'none';
+            document.getElementById('pantalla-lobby').style.display = 'flex';
+            document.getElementById('saludoLobby').innerText = "Hola, " + miNombre;
+        });
+
+        function buscarPartida(modo) { socket.emit('buscarPartida', modo); }
+
+        function retarAmigo() {
+            let rival = document.getElementById('inputRival').value.trim();
+            if(!rival || rival === miNombre) return alert("Nombre inválido");
+            socket.emit('retarJugador', rival);
+        }
+
+        socket.on('mensajeEspera', (msg) => {
+            document.getElementById('modal-espera').style.display = 'flex';
+            document.getElementById('textoEspera').innerText = msg;
+        });
+
+        socket.on('errorReto', (msg) => { alert(msg); cerrarModal('modal-espera'); });
+
+        socket.on('solicitudReto', (data) => {
+            idRetadorPendiente = data.idRetador;
+            document.getElementById('textoInvitacion').innerText = `¡${data.nombreRetador} te desafía!`;
+            document.getElementById('modal-invitacion').style.display = 'flex';
+        });
+
+        function responderInvitacion(acepta) {
+            document.getElementById('modal-invitacion').style.display = 'none';
+            socket.emit('respuestaReto', { acepta: acepta, idRetador: idRetadorPendiente });
+            if(acepta) {
+                document.getElementById('modal-espera').style.display = 'flex';
+                document.getElementById('textoEspera').innerText = "Iniciando partida...";
+            }
+        }
+
+        // --- INICIO SELECCION ---
+        socket.on('initSeleccion', function(data) {
+            miId = data.id;
+            poolCartas = data.todasLasCartas;
+            idsDesbloqueados = data.misDesbloqueos || [];
+            nombreRival = data.rivalNombre || "Oponente";
+            
+            cerrarModal('modal-espera');
+            document.getElementById('pantalla-lobby').style.display = 'none';
+            document.getElementById('pantalla-seleccion').style.display = 'flex';
+            
+            seleccionadasIndices = []; 
+            dibujarSeleccion(); 
+            actualizarBotonComenzar();
+        });
+
+        // --- UI UTILS ---
+        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // --- LÓGICA DE SELECCIÓN DE CARTAS ---
+        function dibujarSeleccion() {
+            let grid = document.getElementById('gridCartas'); grid.innerHTML = "";
+            poolCartas.forEach((carta, index) => {
+                let div = document.createElement('div');
+                let blq = carta.bloqueada && !idsDesbloqueados.includes(carta.id);
+                let sel = seleccionadasIndices.includes(index);
+                div.className = `carta-seleccion ${blq ? "carta-bloqueada" : (sel ? "seleccionada" : "")}`;
+                div.innerHTML = `<div class="carta-titulo" style="font-size:12px;">${carta.nombre}</div><img src="${carta.img}" class="img-mini">${blq ? '<div class="candado-icon">🔒</div>' : ''}`;
+                
+                div.onclick = () => { 
+                    if(blq){ 
+                        cartaIdIntentandoDesbloquear = carta.id; 
+                        document.getElementById('modal-codigo').style.display = 'flex'; 
+                        sonarClick();
+                    } else { 
+                        toggleSeleccion(index); 
+                        sonarSeleccion(); // Sonido papel
+                    } 
+                };
+                grid.appendChild(div);
+            });
+        }
+        function toggleSeleccion(idx) {
+            if (seleccionadasIndices.includes(idx)) seleccionadasIndices = seleccionadasIndices.filter(i => i !== idx);
+            else if (seleccionadasIndices.length < 5) seleccionadasIndices.push(idx);
+            dibujarSeleccion(); actualizarBotonComenzar();
+        }
+        function actualizarBotonComenzar() {
+            let btn = document.getElementById('btnComenzar');
+            document.getElementById('msgSeleccion').innerText = `Cartas: ${seleccionadasIndices.length} / 5`;
+            btn.className = (seleccionadasIndices.length === 5) ? 'activo' : '';
+            btn.disabled = (seleccionadasIndices.length !== 5);
+        }
+        function enviarSeleccion() { if(seleccionadasIndices.length===5) { socket.emit('jugadorListo', seleccionadasIndices); document.getElementById('btnComenzar').innerText = "Esperando..."; document.getElementById('btnComenzar').disabled=true; } }
+        
+        // --- CODIGOS SECRETOS ---
+        function verificarCodigo() { socket.emit('intentarDesbloquear', { idCarta: cartaIdIntentandoDesbloquear, codigo: document.getElementById('inputCodigo').value }); }
+        socket.on('desbloqueoExitoso', (data) => { idsDesbloqueados.push(data.id); cerrarModal('modal-codigo'); document.getElementById('nombreCartaDesbloqueada').innerText = data.nombre; document.getElementById('modal-exito').style.display = 'flex'; dibujarSeleccion(); });
+        socket.on('errorDesbloqueo', (msg) => document.getElementById('errorCodigo').innerText = msg);
+
+        // --- LÓGICA DE JUEGO PRINCIPAL ---
+        socket.on('inicioJuego', () => { 
+            document.getElementById('pantalla-seleccion').style.display='none'; 
+            document.getElementById('pantalla-juego').style.display='flex'; 
+            document.getElementById('mensaje').innerText="¡BATALLA!"; 
+            dibujarMesaEsperando(); 
+            document.getElementById('miMano').innerHTML=""; 
+        });
+
+        socket.on('girarDado', () => document.getElementById('overlay-dado').style.display='flex');
+
+        socket.on('nuevoTurno', (data) => { 
+            document.getElementById('overlay-dado').style.display='none'; 
+            document.getElementById('dado').innerText=data.atributo.toUpperCase(); 
+            document.getElementById('mensaje').innerText=`Turno de ${data.atributo}`; 
+            
+            atributoDelTurno = data.indiceAtributo; 
+            bloqueado = false; 
+            miCartaEnMesa = null; 
+            rivalJugo = false;    
+            
+            dibujarMesaEsperando(); 
+            dibujarMano(); 
+        });
+
+        socket.on('actualizarMano', (mano) => { misCartas=mano; dibujarMano(); });
+        
+        socket.on('cartaJugadaAnuncio', (id) => { 
+            if (id !== miId) { 
+                rivalJugo = true; 
+                document.getElementById('mensaje').innerText = `${nombreRival} ha jugado una carta.`; 
+            } else {
+                document.getElementById('mensaje').innerText = "Esperando al rival...";
+            }
+            dibujarMesaEsperando(); 
+        });
+
+        socket.on('resultado', (data) => { 
+            document.getElementById('mensaje').innerText=data.texto; 
+            let cr = data.cartas.find(c => c.dueno !== miId); 
+            let cm = data.cartas.find(c => c.dueno === miId); 
+            
+            document.getElementById('mesa').innerHTML = `
+                <div class="slot-vacio">
+                    ${nombreRival}
+                    ${generarHTMLCartaMesa(cr, data.ganador)}
+                </div>
+                <div style="font-size:30px;font-weight:bold;color:#fff;">VS</div>
+                <div class="slot-vacio">
+                    ${miNombre}
+                    ${generarHTMLCartaMesa(cm, data.ganador)}
+                </div>`; 
+        });
+
+        socket.on('juegoTerminado', (data) => { 
+            let gano = (data.ganador===miId);
+            document.getElementById('mensaje').innerText = gano ? "¡VICTORIA!" : "DERROTA"; 
+            document.body.style.backgroundColor = gano ? "#003300" : "#330000"; 
+            
+            // AUDIO FIN DE JUEGO
+            audioFondo.pause();
+            if (gano) musicVictoria.play(); else musicDerrota.play();
+
+            document.getElementById('mesa').innerHTML += `<div class="contenedor-botones-fin"><button class="btn-fin btn-mismo" onclick="elegirMismo(); sonarClick();">MISMO MAZO</button><button class="btn-fin btn-cambiar" onclick="elegirCambiar(); sonarClick();">CAMBIAR MAZO</button><button class="btn-fin btn-salir" onclick="salirAlMenu(); sonarClick();">SALIR AL MENÚ</button></div>`; 
+            bloqueado=true; 
+            dibujarMano(); 
+        });
+
+        function elegirMismo() { 
+            document.getElementById('mesa').innerHTML="<h2 style='color:white'>Esperando...</h2>"; 
+            socket.emit('decisionFinPartida','mismo'); 
+            // Reiniciar musica
+            audioFondo.currentTime=0; audioFondo.play();
+        }
+        function elegirCambiar() { 
+            socket.emit('decisionFinPartida','cambiar'); 
+            audioFondo.currentTime=0; audioFondo.play();
+        }
+        function salirAlMenu() { socket.emit('decisionFinPartida','salir'); location.reload(); }
+        
+        socket.on('esperandoRivalEndGame', () => document.getElementById('mesa').innerHTML="<h2 style='color:white'>Esperando rival...</h2>");
+        socket.on('rivalAbandono', () => { alert("El rival salió."); location.reload(); });
+        socket.on('resetTotal', () => location.reload());
+
+        // --- DIBUJADO DE LA MESA EN TIEMPO REAL ---
+        function dibujarMesaEsperando() {
+            let htmlRival = rivalJugo ? 
+                `<div class="carta-dorso"></div>` : 
+                `<div style="color:#ddd">Esperando jugada...</div>`;
+            
+            let htmlMio = miCartaEnMesa ? 
+                `<div class="carta" style="border-color:gold">
+                    <div class="carta-titulo">${miCartaEnMesa.nombre}</div>
+                    <img src="${miCartaEnMesa.img}" class="carta-img">
+                    <div style="background:orange;width:100%;font-weight:bold;">${miCartaEnMesa.stats[atributoDelTurno]}</div>
+                 </div>` : 
+                `<div style="color:#ddd">Selecciona tu carta</div>`;
+
+            document.getElementById('mesa').innerHTML = `
+                <div class="slot-vacio">${nombreRival}${htmlRival}</div>
+                <div style="font-size:30px;font-weight:bold;">VS</div>
+                <div class="slot-vacio">${miNombre}${htmlMio}</div>`;
+        }
+
+        function generarHTMLCartaMesa(obj, gan) { 
+            if(!obj) return ""; 
+            return `<div class="carta" style="border-color:${obj.dueno===gan?"#0f0":"#f00"}">
+                        <div class="carta-titulo">${obj.carta.nombre}</div>
+                        <img src="${obj.carta.img}" class="carta-img">
+                        <div style="background:gold;width:100%;font-weight:bold;">${obj.carta.stats[atributoDelTurno]}</div>
+                    </div>`; 
+        }
+
+        function dibujarMano() {
+            let c=document.getElementById('miMano'); c.innerHTML="";
+            misCartas.forEach((k,i)=>{
+                let d=document.createElement('div'); d.className=bloqueado?'carta carta-deshabilitada':'carta';
+                let s = ["Inteligencia","Astucia","Magia","Velocidad","Valor","Fuerza","Sabiduria","Agilidad"].map((l,x)=>`<div class="stat-item" style="${x===atributoDelTurno?'background:orange;font-weight:bold':''}">${l}: ${k.stats[x]}</div>`).join("");
+                d.innerHTML=`<div class="carta-titulo">${k.nombre}</div><img src="${k.img}" class="carta-img"><div class="carta-stats">${s}</div>`;
+                
+                d.onclick=()=>{
+                    if(atributoDelTurno!==-1 && !bloqueado){
+                        miCartaEnMesa = k; 
+                        socket.emit('jugarCarta', i);
+                        bloqueado = true;
+                        sonarJugarCarta(); // SONIDO
+                        dibujarMesaEsperando(); 
+                        dibujarMano();
+                    }
+                };
+                c.appendChild(d);
+            });
+        }
+    </script>
+</body>
+</html>
