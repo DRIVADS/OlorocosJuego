@@ -310,4 +310,9 @@ io.on('connection', (socket) => {
     });
 });
 
-http.listen(3000, () => { console.log('Servidor 3000 listo'); });
+// Usar el puerto que me da la nube (process.env.PORT) o el 3000 si estoy en mi PC
+const PORT = process.env.PORT || 3000;
+
+http.listen(PORT, '0.0.0.0', () => { 
+  console.log(`Servidor listo en el puerto ${PORT}`); 
+});
